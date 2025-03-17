@@ -1,0 +1,93 @@
+version: '3.8'
+services:
+  redis-master:
+    image: redis:7.0.5
+    container_name: redis-master
+    networks:
+      redis_net:
+        ipv4_address: 172.20.0.2
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis-master.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+
+  redis-replica:
+    image: redis:7.0.5
+    container_name: redis-replica
+    networks:
+      redis_net:
+        ipv4_address: 172.20.0.3
+    depends_on:
+      - redis-master
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redis-rep.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+
+  sentinel1:
+    image: redis:7.0.5
+    container_name: redis-sentinel-1
+    networks:
+      redis_net:
+        ipv4_address: 172.20.0.4
+    depends_on:
+      - redis-master
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: ["redis-sentinel", "/usr/local/etc/redis/sentinel.conf"]
+
+  sentinel2:
+    image: redis:7.0.5
+    container_name: redis-sentinel-2
+    networks:
+      redis_net:
+        ipv4_address: 172.20.0.5
+    depends_on:
+      - redis-master
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: ["redis-sentinel", "/usr/local/etc/redis/sentinel.conf"]
+
+  sentinel3:
+    image: redis:7.0.5
+    container_name: redis-sentinel-3
+    networks:
+      redis_net:
+        ipv4_address: 172.20.0.6
+    depends_on:
+      - redis-master
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: ["redis-sentinel", "/usr/local/etc/redis/sentinel.conf"]
+
+  test-app:
+    build: .
+    container_name: test-app
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis-master
+      - redis-replica
+      - sentinel1
+      - sentinel2
+      - sentinel3
+    networks:
+      redis_net:
+        ipv4_address: 172.20.0.7
+    volumes:
+      - ./app:/app
+
+networks:
+  redis_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
